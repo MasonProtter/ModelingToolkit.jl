@@ -124,3 +124,23 @@ function Base.:(==)(c1::Clock, c2::Clock)
 end
 
 is_concrete_time_domain(x) = x isa Union{AbstractClock, Continuous}
+
+"""
+    ContinuousClock <: AbstractClock
+    ContinuousClock([t]; dt)
+
+A clock that ticks at each solver step. This clock does generally not have equidistant tick intervals, instead, the tick interval depends on the adaptive step-size slection of the continuous solver, as well as any continuous event handling. If adaptivity of the solver is turned off and there are no continuous events, the tick interval will be given by the fixed solver time step `dt`.
+"""
+struct ContinuousClock <: AbstractClock
+    "Independent variable"
+    t::Union{Nothing, Symbolic}
+    "Period"
+    ContinuousClock(t::Union{Num, Symbolic}) = new(value(t))
+end
+ContinuousClock() = ContinuousClock(nothing)
+
+sampletime(c) = nothing
+Base.hash(c::ContinuousClock, seed::UInt) = seed ⊻ 0x953d7b9a18874b91
+function Base.:(==)(c1::ContinuousClock, c2::ContinuousClock)
+    ((c1.t === nothing || c2.t === nothing) || isequal(c1.t, c2.t))
+end
