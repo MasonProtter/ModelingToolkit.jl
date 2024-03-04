@@ -453,7 +453,6 @@ function generate_rootfinding_callback(cbs, sys::AbstractODESystem, dvs = unknow
     end
 
     rhss = map(x -> x.rhs, eqs)
-    root_eq_vars = unique(collect(Iterators.flatten(map(ModelingToolkit.vars, rhss))))
 
     u = map(x -> time_varying_as_func(value(x), sys), dvs)
     p = map.(x -> time_varying_as_func(value(x), sys), reorder_parameters(sys, ps))

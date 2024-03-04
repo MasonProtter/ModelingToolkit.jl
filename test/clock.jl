@@ -481,7 +481,7 @@ end
 ## Test continuous clock
 
 c = ModelingToolkit.ContinuousClock(t)
-
+k = ShiftIndex()
 @mtkmodel Counter begin
     @variables begin
         count(t) = 0
@@ -515,4 +515,51 @@ end
 prob = ODEProblem(model, [], (0.0, 10.0))
 sol = solve(prob, Tsit5(), kwargshandle = KeywordArgSilent)
 
-@test sol.prob.kwargs[:disc_saved_values][1].t == sol.t[1:2:end] # Test that the discrete-tiem system executed at every step of the continuous solver. The solver saves each time step twice, one state value before discrete affect and one after.
+@test sol.prob.kwargs[:disc_saved_values][1].t == sol.t[1:2:end] # Test that the discrete-time system executed at every step of the continuous solver. The solver saves each time step twice, one state value before discrete affect and one after.
+@test sol.prob.kwargs[:disc_saved_values][1].saveval[2:end] == sol.u[1:2:(end - 2)]
+
+## Test event clock
+
+k = ShiftIndex()
+@mtkmodel CrossingCounter begin
+    @variables begin
+        count(t) = 0
+        u(t) = 0
+    end
+    @equations begin
+        count(k+1) ~ u
+    end
+end
+
+@mtkmodel FirstOrder begin
+    @variables begin
+        x(t) = 0
+    end
+    @equations begin
+        D(x) ~ -x + sin(t)
+    end
+end
+
+@mtkmodel FirstOrderWithCrossingCounter begin
+    @components begin
+        counter = CrossingCounter()
+        fo = FirstOrder()
+    end
+    begin
+        c2 = ModelingToolkit.EventClock(t, fo.x ~ 0.1)
+    end
+    @equations begin
+        counter.u ~ Sample(c2)(fo.x)
+    end
+end
+
+@mtkbuild model = FirstOrderWithCrossingCounter()
+prob = ODEProblem(model, [], (0.0, 30.0))
+sol = solve(prob, Tsit5(), kwargshandle = KeywordArgSilent)
+
+@test all(x -> isapprox(0.1, x[], rtol = 1e-6),
+    sol.prob.kwargs[:disc_saved_values][1].saveval[2:end]) # omit first value due to initial value of count in count(k+1) ~ u
+@test length(sol.prob.kwargs[:disc_saved_values][1].t) == 10 # number of crossings of 0.1
+
+# plot(sol)
+# vline!(sol.prob.kwargs[:disc_saved_values][1].t)

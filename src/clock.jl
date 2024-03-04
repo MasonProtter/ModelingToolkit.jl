@@ -126,15 +126,14 @@ end
 is_concrete_time_domain(x) = x isa Union{AbstractClock, Continuous}
 
 """
-    ContinuousClock <: AbstractClock
-    ContinuousClock([t]; dt)
+    ContinuousClock()
+    ContinuousClock(t)
 
 A clock that ticks at each solver step. This clock does generally not have equidistant tick intervals, instead, the tick interval depends on the adaptive step-size slection of the continuous solver, as well as any continuous event handling. If adaptivity of the solver is turned off and there are no continuous events, the tick interval will be given by the fixed solver time step `dt`.
 """
 struct ContinuousClock <: AbstractClock
     "Independent variable"
     t::Union{Nothing, Symbolic}
-    "Period"
     ContinuousClock(t::Union{Num, Symbolic}) = new(value(t))
 end
 ContinuousClock() = ContinuousClock(nothing)
@@ -143,4 +142,24 @@ sampletime(c) = nothing
 Base.hash(c::ContinuousClock, seed::UInt) = seed ⊻ 0x953d7b9a18874b91
 function Base.:(==)(c1::ContinuousClock, c2::ContinuousClock)
     ((c1.t === nothing || c2.t === nothing) || isequal(c1.t, c2.t))
+end
+
+"""
+    EventClock(t)
+    EventClock(t, root_equation)
+
+A clock that ticks each time the continuously evaluated `root_equation` is true. This clock is used to trigger the exection of a discrete system when a continuous event occurs.
+"""
+struct EventClock <: AbstractClock
+    "Independent variable"
+    t::Union{Nothing, Symbolic}
+    cond::Any
+    EventClock(t::Union{Num, Symbolic}, ex) = new(value(t), ex)
+end
+
+sampletime(c) = nothing
+Base.hash(c::EventClock, seed::UInt) = hash(c.cond, seed ⊻ 0x253d7b9a18874b91)
+function Base.:(==)(c1::EventClock, c2::EventClock)
+    ((c1.t === nothing || c2.t === nothing) || isequal(c1.t, c2.t)) &&
+        isequal(c1.cond, c2.cond)
 end

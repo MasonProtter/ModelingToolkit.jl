@@ -173,7 +173,6 @@ end
 function (xn::Num)(k::ShiftIndex)
     @unpack clock, steps = k
     x = value(xn)
-    t = clock.t
     # Verify that the independent variables of k and x match and that the expression doesn't have multiple variables
     vars = Symbolics.get_variables(x)
     length(vars) == 1 ||
@@ -181,8 +180,10 @@ function (xn::Num)(k::ShiftIndex)
     args = Symbolics.arguments(vars[]) # args should be one element vector with the t in x(t)
     length(args) == 1 ||
         error("Cannot shift an expression with multiple independent variables $x.")
-    isequal(args[], t) ||
+    if isa(clock, Clock)
+        isequal(args[], t) ||
         error("Independent variable of $xn is not the same as that of the ShiftIndex $(k.t)")
+    end
 
     # d, _ = propagate_time_domain(xn)
     # if d != clock # this is only required if the variable has another clock
@@ -193,7 +194,7 @@ function (xn::Num)(k::ShiftIndex)
     if steps == 0
         return xn # x(k) needs no shift operator if the step of k is 0
     end
-    Shift(t, steps)(xn) # a shift of k steps
+    Shift(clock isa Inferred ? nothing : clock.t, steps)(xn) # a shift of k steps
 end
 
 Base.:+(k::ShiftIndex, i::Int) = ShiftIndex(k.clock, k.steps + i)
