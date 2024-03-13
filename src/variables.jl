@@ -193,9 +193,7 @@ function _varmap_to_vars(varmap::Dict, varlist; defaults = Dict(), check = false
     for var in varlist
         var = unwrap(var)
         val = unwrap(fixpoint_sub(fixpoint_sub(var, varmap), defaults))
-        if symbolic_type(val) === NotSymbolic()
-            values[var] = val
-        end
+        values[var] = val
     end
     missingvars = setdiff(varlist, collect(keys(values)))
     check && (isempty(missingvars) || throw(MissingVariablesError(missingvars)))
